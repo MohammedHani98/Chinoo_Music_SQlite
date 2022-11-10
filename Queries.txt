@@ -1,0 +1,147 @@
+/* Question 1 */
+
+SELECT t3.GenreId Genre_ID,
+       t3.Name Genre_Name,
+       t3.Tracks_Sold Number,
+       t3.BillingCountry Country
+FROM
+  (SELECT t1.BillingCountry,
+          MAX(Tracks_Sold) max_count
+   FROM
+     (SELECT Genre.Name,
+             Genre.GenreId,
+             COUNT(*) Tracks_Sold,
+             Invoice.BillingCountry
+      FROM Genre
+      JOIN Track ON Genre.GenreId = Track.GenreId
+      JOIN InvoiceLine ON InvoiceLine.TrackId = Track.TrackId
+      JOIN Invoice ON Invoice.InvoiceId = InvoiceLine.InvoiceId
+      GROUP BY 1,
+               2,
+               4) t1
+   GROUP BY 1) t2 JOIN
+  (SELECT Genre.Name,
+	  Genre.GenreId,
+	  COUNT(*) Tracks_Sold,
+	  Invoice.BillingCountry
+   FROM Genre
+   JOIN Track ON Genre.GenreId = Track.GenreId
+   JOIN InvoiceLine ON InvoiceLine.TrackId = Track.TrackId
+   JOIN Invoice ON Invoice.InvoiceId = InvoiceLine.InvoiceId
+   GROUP BY 1, 2, 4) t3 ON t3.BillingCountry = t2.BillingCountry
+AND t3.Tracks_Sold = t2.max_count
+GROUP BY 2,
+         4;
+
+
+/* Question 2 */
+
+SELECT t3.CustomerId Customer_ID,
+       t3.FirstName || ' ' || t3.LastName AS Full_Name,
+       t3.BillingCountry Country,
+       t2.max_spent Max_Spent
+FROM
+  (SELECT t1.BillingCountry,
+          MAX(total_spent) max_spent
+   FROM
+     (SELECT Customer.CustomerId,
+             Customer.FirstName,
+             Customer.LastName,
+             Invoice.BillingCountry,
+             SUM(Invoice.Total) total_spent
+      FROM Invoice
+      JOIN Customer ON Invoice.CustomerId = Customer.CustomerId
+      GROUP BY 1,
+               2,
+               3,
+               4) t1
+   GROUP BY 1) t2
+JOIN
+  (SELECT Customer.CustomerId,
+          Customer.FirstName,
+          Customer.LastName,
+          Invoice.BillingCountry,
+          SUM(Invoice.Total) total_spent
+   FROM Invoice
+   JOIN Customer ON Invoice.CustomerId = Customer.CustomerId
+   GROUP BY 1,
+            2,
+            3,
+            4) t3 ON t2.BillingCountry = t3.BillingCountry
+AND t2.max_spent = t3.total_spent
+ORDER BY max_spent DESC;
+
+
+/* Question 3 */
+SELECT track.Name,
+       CAST(Track.Milliseconds/60 AS REAL)/1000 AS Minutes,
+       SUM(InvoiceLine.UnitPrice * InvoiceLine.Quantity) Total_Earnings,
+       CASE
+           WHEN SUM(InvoiceLine.UnitPrice * InvoiceLine.Quantity) >=
+                  (SELECT AVG(total_earnings) avg_earnings
+                   FROM
+                     (SELECT track.Name,
+                             SUM(InvoiceLine.UnitPrice * InvoiceLine.Quantity) total_earnings
+                      FROM Track
+                      JOIN InvoiceLine ON InvoiceLine.TrackId = Track.TrackId
+                      GROUP BY 1)) THEN 'Best selling'
+           ELSE 'Worst selling'
+       END AS Track_Performance
+FROM Track
+JOIN InvoiceLine ON InvoiceLine.TrackId = Track.TrackId
+GROUP BY 1
+ORDER BY 3 DESC;
+
+
+/*Question 4 */
+SELECT Earnings_Month,
+       Earnings_Year,
+       SUM(Earnings) Total_Earnings,
+       SUM(Tracks_Sold) Total_Sold
+FROM
+  (SELECT Album.AlbumId Album_ID,
+          Album.Title Album_Title,
+          SUM(InvoiceLine.UnitPrice * InvoiceLine.Quantity) Earnings,
+          COUNT(*) Tracks_Sold,
+          STRFTIME('%m', Invoice.InvoiceDate) Earnings_Month,
+          STRFTIME('%Y', Invoice.InvoiceDate) Earnings_Year
+   FROM Track
+   JOIN Album ON Album.AlbumId = Track.AlbumId
+   JOIN InvoiceLine ON InvoiceLine.TrackId = Track.TrackId
+   JOIN Invoice ON Invoice.InvoiceId = InvoiceLine.InvoiceId
+   GROUP BY 1,
+	    5,
+	    6
+   ORDER BY 1)
+GROUP BY 1,
+         2
+ORDER BY 1
+
+
+/* Question 5A */
+
+SELECT Artist.ArtistId Artist_ID,
+       Artist.Name Artist_Name,
+       COUNT(Track.TrackId) Number_of_Tracks_Sold,
+       ROUND(SUM(InvoiceLine.UnitPrice)) Earnings
+FROM Album
+JOIN Artist ON Album.ArtistId = Artist.ArtistId
+JOIN Track ON Track.AlbumId = Album.AlbumId
+JOIN InvoiceLine ON InvoiceLine.TrackId = Track.TrackId
+GROUP BY 1
+ORDER BY 4 DESC
+LIMIT 10
+
+/* Question 5B */
+
+SELECT Artist.ArtistId Artist_ID,
+       Artist.Name Artist_Name,
+       COUNT(Track.TrackId) Number_of_Tracks_Sold,
+       ROUND(SUM(InvoiceLine.UnitPrice)) Earnings
+FROM Album, Artist, Track, InvoiceLine
+WHERE Album.ArtistId = Artist.ArtistId
+AND Track.AlbumId = Album.AlbumId
+AND InvoiceLine.TrackId = Track.TrackId
+GROUP BY 1
+ORDER BY 3 DESC
+LIMIT 10
