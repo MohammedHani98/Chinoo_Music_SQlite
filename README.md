@@ -7,3 +7,8 @@
 - Rock genere is the most poular genre among other genres of music
 - On average, the number of albums sold are around 38 albums for each month
 - Iron Maiden was the most performing artist in terms of sold tracks
+
+## License
+Credit to Udacity for the data and other descriptive information
+
+
